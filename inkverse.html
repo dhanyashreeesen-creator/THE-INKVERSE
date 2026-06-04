@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Inkverse — A Literary Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink: #1a1209; --parchment: #f5ead6; --parchment2: #ede0c4;
+  --gold: #c9a84c; --gold2: #a07830; --ember: #c44a1a;
+  --mist: #8a7a65; --dark: #0d0b08; --panel: #1c150e; --panel2: #231a10;
+  --correct: #4a7c59; --wrong: #8b3a2a;
+}
+body { font-family: 'Crimson Pro', Georgia, serif; background: var(--dark); color: var(--parchment); min-height: 100vh; overflow-x: hidden; }
+.screen { display: none; flex-direction: column; align-items: center; min-height: 100vh; padding: 2rem 1rem; }
+.screen.active { display: flex; }
+
+/* TITLE */
+#title-screen {
+  background: radial-gradient(ellipse at 50% 30%, #2a1f0e 0%, #0d0b08 70%);
+  justify-content: center; text-align: center; position: relative; overflow: hidden;
+}
+.candle-glow {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,168,76,0.18) 0%, transparent 70%);
+  animation: flicker 3s ease-in-out infinite alternate; pointer-events: none;
+}
+@keyframes flicker { 0% { opacity:0.6; transform:scale(1); } 100% { opacity:1; transform:scale(1.08); } }
+@keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+.title-ornament { font-size: 1rem; color: var(--gold); letter-spacing: 0.4em; text-transform: uppercase; margin-bottom: 1.2rem; opacity: 0.8; }
+.title-main { font-family: 'Playfair Display', serif; font-size: clamp(3rem,8vw,5.5rem); font-weight: 700; color: var(--parchment); line-height: 1; text-shadow: 0 0 60px rgba(201,168,76,0.4); margin-bottom: 0.4rem; animation: fadeUp 1s ease forwards; }
+.title-sub { font-style: italic; font-size: 1.25rem; color: var(--gold); margin-bottom: 2.5rem; opacity: 0; animation: fadeUp 1s ease 0.4s forwards; }
+.title-desc { font-size: 1.05rem; color: var(--mist); max-width: 480px; line-height: 1.8; margin-bottom: 3rem; opacity: 0; animation: fadeUp 1s ease 0.7s forwards; }
+.title-divider { width: 120px; height: 1px; background: linear-gradient(to right, transparent, var(--gold), transparent); margin: 1.5rem auto; opacity: 0; animation: fadeUp 1s ease 0.55s forwards; }
+
+.btn-primary { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--dark); background: var(--gold); border: none; padding: 0.85rem 2.5rem; border-radius: 2px; cursor: pointer; letter-spacing: 0.12em; transition: background 0.2s, transform 0.15s; opacity: 0; animation: fadeUp 1s ease 1s forwards; }
+.btn-primary:hover { background: #e0bb6a; transform: translateY(-2px); }
+.btn-primary.no-anim { opacity: 1; animation: none; }
+
+/* LIBRARY */
+#library-screen { background: var(--dark); align-items: stretch; padding: 0; }
+.library-header { background: var(--panel); border-bottom: 1px solid rgba(201,168,76,0.2); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.library-header h2 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--gold); }
+.xp-bar-wrap { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--mist); }
+.xp-bar-outer { width: 140px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.xp-bar-inner { height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.4s ease; }
+.rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.2rem; padding: 2rem 1.5rem; }
+.room-card { background: var(--panel); border: 1px solid rgba(201,168,76,0.15); border-top: 3px solid transparent; border-radius: 4px; padding: 1.5rem; cursor: pointer; transition: border-color 0.2s, transform 0.2s, background 0.2s; }
+.room-card:hover:not(.locked) { border-color: rgba(201,168,76,0.5); transform: translateY(-3px); background: var(--panel2); }
+.room-card.locked { opacity: 0.45; cursor: not-allowed; }
+.room-card.completed { border-color: rgba(74,124,89,0.4); }
+.room-icon { font-size: 2rem; margin-bottom: 0.8rem; }
+.room-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--parchment); margin-bottom: 0.3rem; }
+.room-desc { font-size: 0.9rem; color: var(--mist); line-height: 1.5; margin-bottom: 0.8rem; }
+.room-status { font-size: 0.8rem; color: var(--gold); letter-spacing: 0.06em; }
+.room-lock { font-size: 0.8rem; color: var(--mist); }
+
+/* INTRO */
+#intro-screen { background: var(--dark); justify-content: center; text-align: center; padding: 3rem 1.5rem; }
+.intro-icon { font-size: 3.5rem; margin-bottom: 1.2rem; }
+.intro-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--parchment); margin-bottom: 0.5rem; }
+.intro-movement { font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 1.2rem; }
+.intro-desc { font-size: 1.05rem; color: var(--mist); max-width: 460px; line-height: 1.8; margin: 0 auto 2rem; }
+.what-to-expect { background: var(--panel); border: 1px solid rgba(201,168,76,0.15); border-radius: 4px; padding: 1.2rem 1.5rem; max-width: 440px; margin: 0 auto 2rem; text-align: left; }
+.expect-title { font-family: 'Playfair Display', serif; font-size: 0.95rem; color: var(--gold); margin-bottom: 0.8rem; }
+.expect-item { font-size: 0.92rem; color: var(--mist); padding: 0.3rem 0; display: flex; gap: 8px; }
+.expect-dot { color: var(--gold); }
+.btn-secondary { background: transparent; border: 1px solid rgba(201,168,76,0.4); color: var(--mist); font-family: 'Playfair Display', serif; font-size: 0.95rem; padding: 0.7rem 1.6rem; border-radius: 2px; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+/* GAME */
+#game-screen { background: var(--dark); align-items: stretch; padding: 0; }
+.game-header { background: var(--panel); border-bottom: 1px solid rgba(201,168,76,0.2); padding: 0.85rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+.game-room-name { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--gold); font-style: italic; }
+.progress-pips { display: flex; gap: 6px; }
+.pip { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.12); transition: background 0.3s; }
+.pip.done { background: var(--gold); }
+.pip.current { background: var(--ember); }
+.game-body { padding: 2rem 1.5rem; max-width: 680px; margin: 0 auto; width: 100%; }
+.question-type-badge { display: inline-block; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); border: 1px solid rgba(201,168,76,0.3); padding: 0.2rem 0.6rem; border-radius: 2px; margin-bottom: 1.2rem; }
+.question-text { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--parchment); line-height: 1.65; margin-bottom: 0.6rem; }
+.question-passage { font-style: italic; font-size: 1.05rem; color: var(--parchment2); line-height: 1.8; border-left: 2px solid var(--gold); padding: 0.8rem 1.2rem; margin: 1rem 0 1.5rem; background: rgba(201,168,76,0.05); border-radius: 0 3px 3px 0; white-space: pre-line; }
+.options-list { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 1.5rem; }
+.option-btn { background: var(--panel); border: 1px solid rgba(201,168,76,0.2); border-radius: 3px; padding: 0.9rem 1.2rem; color: var(--parchment); font-family: 'Crimson Pro', serif; font-size: 1.05rem; text-align: left; cursor: pointer; transition: border-color 0.18s, background 0.18s; display: flex; align-items: flex-start; gap: 10px; }
+.option-btn:hover:not(:disabled) { border-color: var(--gold); background: var(--panel2); }
+.option-btn.correct { border-color: var(--correct); background: rgba(74,124,89,0.15); }
+.option-btn.wrong { border-color: var(--wrong); background: rgba(139,58,42,0.12); }
+.option-btn:disabled { cursor: default; }
+.option-letter { font-family: 'Playfair Display', serif; color: var(--gold); font-size: 0.9rem; min-width: 20px; margin-top: 1px; flex-shrink: 0; }
+.feedback-box { margin-top: 1.4rem; padding: 1rem 1.2rem; border-radius: 3px; border-left: 3px solid; display: none; }
+.feedback-box.show { display: block; animation: fadeUp 0.3s ease forwards; }
+.feedback-box.correct-fb { border-color: var(--correct); background: rgba(74,124,89,0.1); }
+.feedback-box.wrong-fb { border-color: var(--wrong); background: rgba(139,58,42,0.08); }
+.feedback-title { font-family: 'Playfair Display', serif; font-size: 1rem; margin-bottom: 0.4rem; }
+.feedback-box.correct-fb .feedback-title { color: #7ec896; }
+.feedback-box.wrong-fb .feedback-title { color: #d4806a; }
+.feedback-text { font-size: 0.95rem; color: var(--mist); line-height: 1.7; }
+.next-btn { margin-top: 1.5rem; background: transparent; border: 1px solid var(--gold); color: var(--gold); font-family: 'Playfair Display', serif; font-size: 1rem; padding: 0.7rem 1.8rem; border-radius: 2px; cursor: pointer; letter-spacing: 0.08em; transition: background 0.2s, color 0.2s; display: none; }
+.next-btn.show { display: inline-block; }
+.next-btn:hover { background: var(--gold); color: var(--dark); }
+
+/* RESULT */
+#result-screen { background: radial-gradient(ellipse at 50% 20%, #2a1f0e 0%, #0d0b08 70%); justify-content: center; text-align: center; padding: 3rem 1.5rem; }
+.score-ring { width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--gold); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--gold); box-shadow: 0 0 30px rgba(201,168,76,0.2); }
+.room-complete-label { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); opacity: 0.7; margin-bottom: 0.5rem; }
+.result-type { font-family: 'Playfair Display', serif; font-size: 2.5rem; color: var(--gold); margin: 0.8rem 0 0.5rem; text-shadow: 0 0 40px rgba(201,168,76,0.3); }
+.result-score { font-size: 1.1rem; color: var(--mist); margin-bottom: 1.5rem; }
+.result-desc { font-size: 1.05rem; color: var(--parchment2); max-width: 440px; line-height: 1.8; margin: 0 auto 2rem; font-style: italic; }
+.result-badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
+.badge { background: var(--panel); border: 1px solid rgba(201,168,76,0.25); border-radius: 2px; padding: 0.35rem 0.8rem; font-size: 0.85rem; color: var(--gold); }
+.result-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<div id="title-screen" class="screen active">
+  <div class="candle-glow" style="width:400px;height:400px;top:-100px;left:-50px;animation-delay:0s"></div>
+  <div class="candle-glow" style="width:300px;height:300px;top:50px;right:-80px;animation-delay:1.5s"></div>
+  <div class="candle-glow" style="width:200px;height:200px;bottom:100px;left:100px;animation-delay:0.8s"></div>
+  <div style="position:relative;z-index:1;margin-top:8vh;">
+    <div class="title-ornament">✦ An Invitation to Literature ✦</div>
+    <h1 class="title-main">The Inkverse</h1>
+    <p class="title-sub">A Library of Infinite Worlds</p>
+    <div class="title-divider"></div>
+    <p class="title-desc">Seven rooms. Seven literary worlds. Each one a different way of seeing.<br>Enter and discover which kind of reader you truly are.</p>
+    <button class="btn-primary" onclick="showLibrary()">Open the Library Doors</button>
+  </div>
+</div>
+
+<div id="library-screen" class="screen">
+  <div class="library-header">
+    <h2>The Grand Library</h2>
+    <div class="xp-bar-wrap">
+      <span id="xp-label">0 XP</span>
+      <div class="xp-bar-outer"><div class="xp-bar-inner" id="xp-bar" style="width:0%"></div></div>
+      <span style="font-size:0.8rem;opacity:0.5">/ 350</span>
+    </div>
+  </div>
+  <div class="rooms-grid" id="rooms-grid"></div>
+</div>
+
+<div id="intro-screen" class="screen">
+  <div class="intro-icon" id="intro-icon"></div>
+  <div class="intro-movement" id="intro-movement"></div>
+  <h2 class="intro-title" id="intro-title"></h2>
+  <p class="intro-desc" id="intro-desc"></p>
+  <div class="what-to-expect">
+    <div class="expect-title">What awaits you in this room</div>
+    <div id="expect-items"></div>
+  </div>
+  <button class="btn-primary no-anim" onclick="startRoom()">Enter the Room</button>
+  <button class="btn-secondary" style="margin-top:10px" onclick="showLibrary()">← Return to Library</button>
+</div>
+
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <div class="game-room-name" id="current-room-name"></div>
+    <div class="progress-pips" id="progress-pips"></div>
+  </div>
+  <div class="game-body">
+    <div class="question-type-badge" id="q-type-badge"></div>
+    <div class="question-text" id="q-text"></div>
+    <div class="question-passage" id="q-passage" style="display:none"></div>
+    <div class="options-list" id="options-list"></div>
+    <div class="feedback-box" id="feedback-box">
+      <div class="feedback-title" id="feedback-title"></div>
+      <div class="feedback-text" id="feedback-text"></div>
+    </div>
+    <button class="next-btn" id="next-btn" onclick="nextQuestion()"></button>
+  </div>
+</div>
+
+<div id="result-screen" class="screen">
+  <div class="room-complete-label" id="result-room-label"></div>
+  <div class="score-ring" id="score-ring"></div>
+  <div class="result-type" id="reader-type"></div>
+  <div class="result-score" id="result-score"></div>
+  <p class="result-desc" id="result-desc"></p>
+  <div class="result-badges" id="result-badges"></div>
+  <div class="result-btns">
+    <button class="btn-primary no-anim" onclick="showLibrary()">Return to Library</button>
+    <button class="btn-secondary" onclick="playAgainRoom()">Try Again</button>
+  </div>
+</div>
+
+<script>
+const ROOMS = [
+  {
+    id:'poetry', name:'The Poetry Alcove', icon:'🪶',
+    movement:'Romanticism · Modernism · Confessional',
+    desc:"Where words are weighed like gold, and a single line can change the way you see a morning. This room asks you to listen — not just read.",
+    xpReward:50, locked:false,
+    expects:['Complete famous lines from iconic poems','Decode what a metaphor is really saying','Identify the emotional technique behind each verse'],
+    questions:[
+      { type:'Finish the Line', text:"Complete the opening of Dylan Thomas's most famous villanelle:",
+        passage:'"Do not go gentle into that good night,\nOld age should burn and rave at close of day;\n___"',
+        options:['Rage, rage against the dying of the light.','Sleep, sleep into the peaceful dark.','Weep, weep for what has passed us by.','Yield, yield to what must come to all.'],
+        correct:0, explanation:"Thomas's villanelle uses the refrain 'Rage, rage against the dying of the light' — the villanelle form, with its repeated lines, creates urgency and defiance. The dying light is death itself; Thomas urges his dying father to resist it." },
+      { type:'Hidden Meaning', text:"In Keats's 'Ode on a Grecian Urn,' the phrase 'Beauty is truth, truth beauty' is an example of:",
+        options:['Onomatopoeia — words that sound like what they mean','Chiasmus — a reversal of grammatical structure for poetic effect','Enjambment — a line that runs on without pause','Elegy — a lament for someone lost'],
+        correct:1, explanation:"Chiasmus is the rhetorical device of reversing a phrase's structure (A→B then B→A). Keats uses it to suggest truth and beauty are not just equal but identical — a core Romantic belief that art reveals deeper reality than reason can." },
+      { type:"Who Wrote It?", text:'Which poet wrote: "I am nobody! Who are you? / Are you nobody, too?"',
+        passage:'"I am nobody! Who are you?\nAre you nobody, too?\nThen there\'s a pair of us — don\'t tell!\nThey\'d advertise — you know."',
+        options:['Walt Whitman','Emily Dickinson','William Blake','Edgar Allan Poe'],
+        correct:1, explanation:"Emily Dickinson — a recluse who published almost nothing in her lifetime — is the voice here. Her use of dashes, slant rhyme, and irony (calling fame 'advertise') are unmistakable. She wrote nearly 1,800 poems in private, most found after her death." },
+      { type:'Literary Device', text:'In the line "The fog comes on little cat feet" (Carl Sandburg), what technique is being used?',
+        options:['Simile — comparing fog to a cat using "like" or "as"','Extended metaphor — fog is described as a cat throughout','Metaphor — fog is called a cat without a comparison word','Personification — fog is given the abstract thoughts of a cat'],
+        correct:2, explanation:"This is a pure metaphor — Sandburg doesn't say fog is 'like' a cat, he implies it IS one through action. The cat's silent, creeping movement perfectly captures how fog rolls in without announcement. Its six-word economy is why this poem is still famous." },
+      { type:'Context & Meaning', text:"Wilfred Owen's war poem 'Dulce et Decorum Est' calls the phrase 'sweet and fitting it is to die for one's country':",
+        options:['"The noblest truth a soldier knows"','"A lie that every soldier must learn"','"The old Lie" — with a capital L','"A sacred duty above all else"'],
+        correct:2, explanation:"Owen deliberately capitalises 'the old Lie' — the poem's entire purpose is to expose this Latin phrase, once taught to British schoolboys as honourable, as a propaganda lie. He witnessed gas attacks first-hand, and the poem's visceral imagery is his counter-argument." }
+    ]
+  },
+  {
+    id:'gothic', name:'The Gothic Wing', icon:'🕯️',
+    movement:'Gothic Fiction · Horror · The Uncanny',
+    desc:"Shadows have meaning here. A crumbling estate is never just an estate — it's a mind. A monster is never just a monster.",
+    xpReward:50, locked:false,
+    expects:['Identify Gothic conventions and what they symbolize','Match atmosphere to its psychological meaning','Distinguish Gothic from horror — they are not the same'],
+    questions:[
+      { type:'Write Like the Genre', text:'You are writing in the Gothic tradition. Which opening best fits the Gothic mode?',
+        options:["I walked into the house. It smelled old. The lights didn't work.","The house received me as a mouth receives something it will not swallow — reluctantly, with held breath.","Sarah had always loved architecture. The Victorian design was unusual but compelling to her trained eye.","The door was unlocked, which was strange. I pushed it open and went inside."],
+        correct:1, explanation:"Gothic prose anthropomorphises environment — the house has a will. The extended metaphor of a mouth creates unease before anything happens. Gothic fiction treats setting as psychology: the house externalises an internal state, often the protagonist's repressed fears or guilt." },
+      { type:'Hidden Meaning', text:"In Mary Shelley's Frankenstein, the creature's ugliness and abandonment symbolises:",
+        options:['Pure evil — some beings are born wicked',"The consequences of unchecked scientific ambition, and society's rejection of the 'other'",'Mary Shelley\'s own physical insecurities','A warning against reading too many books'],
+        correct:1, explanation:"The creature is articulate, sensitive, and deeply lonely — he becomes violent only after repeated rejection. Shelley's true monster is Victor's hubris and society's fear of difference. Written in 1818 by a 19-year-old, Frankenstein is also considered the first science fiction novel." },
+      { type:"Who Said It?", text:'Identify the novel from this passage:',
+        passage:'"It was a bright cold day in April, and the clocks were striking thirteen."',
+        options:["Bram Stoker's Dracula","George Orwell's Nineteen Eighty-Four","H.G. Wells' The Time Machine","Franz Kafka's The Trial"],
+        correct:1, explanation:"Orwell's famous opening immediately signals that something is wrong — clocks do not strike thirteen. This single detail tells you everything: this world has been changed, and not for the better." },
+      { type:'Literary Device', text:'The Gothic literary device of the "double" (Doppelgänger) is used to explore:',
+        options:['The idea that everyone has a twin somewhere in the world','The divided self: repressed desires, hidden guilt, or the gap between public and private identity','Dreams and their symbolic relationship to reality','Hereditary madness passing through family lines'],
+        correct:1, explanation:"Jekyll and Hyde, Dorian Gray and his portrait, the narrator and Roderick Usher — the Gothic double externalises the war within a single self. Stevenson, Wilde, and Poe all used it to ask: what would happen if the part of yourself you hide could walk around and act freely?" },
+      { type:'Context & Meaning', text:'The term "uncanny" in Gothic theory (Freud\'s "Das Unheimliche") refers to:',
+        options:['Something so frightening it cannot be explained','The feeling that something is slightly but wrongly familiar — familiar made strange','The use of supernatural elements in realistic fiction','An unreliable narrator\'s distorted perception of events'],
+        correct:1, explanation:"Freud's 'unheimlich' (uncanny) means 'unhomely' — that specific dread of encountering something that should be familiar but isn't quite right. Gothic fiction weaponises the uncanny: domesticity and comfort turned threatening." }
+    ]
+  },
+  {
+    id:'satire', name:"The Satirist's Study", icon:'🎭',
+    movement:'Satire · Irony · Social Criticism',
+    desc:"In here, nothing is quite what it seems. The sharpest truths come gift-wrapped in absurdity. Laughter is the blade.",
+    xpReward:50, locked:false,
+    expects:["Spot irony even when it's smiling at you","Understand what satire is actually criticising","Distinguish Horatian (gentle) from Juvenalian (savage) satire"],
+    questions:[
+      { type:'Hidden Meaning', text:"Jonathan Swift's 'A Modest Proposal' suggests Irish poor should be sold as food. His real argument is:",
+        options:['Cannibalism as a legitimate solution to overpopulation','A savage condemnation of English economic exploitation of Ireland','A thought experiment about Utilitarian ethics','A critique of Irish poverty with no political target'],
+        correct:1, explanation:"Swift never meant a word of it. By adopting the calm voice of a policy economist, he forces the reader to feel the horror of how Ireland was already being treated — just less literally. This Juvenalian satire attacks the English ruling class by performing their logic to its monstrous conclusion." },
+      { type:'Write Like the Genre', text:'Which passage uses Horatian satire — gentle, witty, affectionate mockery?',
+        options:['"These people would sell their own mothers for a quarterly earnings report."','"It is a truth universally acknowledged that a single man in possession of a good fortune must be in want of a wife."','"The powerful have always found a way to make the powerless grateful for their chains."','"Every politician is a thief, and every voter is a fool who deserves exactly what they elect."'],
+        correct:1, explanation:"Jane Austen's famous opening line gently mocks the marriage market of her era — it's ironic, but warm, not furious. Horatian satire (named after the Roman poet Horace) makes you smile while making a point. Juvenalian satire (Swift, Orwell, Heller) makes you flinch." },
+      { type:"Who Wrote It?", text:'Which author wrote a novel where pigs declare "All animals are equal, but some animals are more equal than others"?',
+        options:['Aldous Huxley','Joseph Heller','George Orwell','Kurt Vonnegut'],
+        correct:2, explanation:"Orwell's Animal Farm (1945) is allegory as satire — a farmyard fable about the Soviet revolution's betrayal. The pigs' gradual adoption of the farmers' habits mirrors how revolutionary ideals are corrupted by power." },
+      { type:'Literary Device', text:'When a satirist says something obviously false with a straight face to expose absurdity, this is called:',
+        options:['Hyperbole — extreme exaggeration for comic effect','Deadpan irony — stating the opposite of truth with no obvious signal','Bathos — undercutting something serious with something trivial','Parody — imitating another text to mock it'],
+        correct:1, explanation:"Deadpan irony is the signature tool of Swift, Austen, Saki, and modern satirists. The reader must do the interpretive work — the writer never winks. This creates reader complicity: you feel clever for catching it, which makes the critique land harder." },
+      { type:'Context & Meaning', text:'"Catch-22" refers to which paradox?',
+        passage:'"There was only one catch and that was Catch-22, which specified that a concern for one\'s own safety in the face of dangers that were real and immediate was the process of a rational mind."',
+        options:['A rule where both following and breaking it leads to the same punishment','A military regulation where you must be insane to fly missions, but requesting to stop proves your sanity — so you must keep flying','A legal paradox where you cannot access a document that would prove you exist','A bureaucratic loop where every form requires another form to complete it'],
+        correct:1, explanation:"Heller's Catch-22 is the defining satire of bureaucratic absurdity: to be grounded from combat, you must be declared insane — but caring about your survival proves you are sane. The novel uses this logic to mock all institutional power that destroys individuals in the name of procedure." }
+    ]
+  },
+  {
+    id:'modernism', name:'The Modernist Chamber', icon:'🔮',
+    movement:'Modernism · Stream of Consciousness · Fragmentation',
+    desc:"Reality is not a straight line. Modernist writers broke the novel open to show how the mind actually works — associative, fragmented, luminous.",
+    xpReward:50, locked:true, unlockXp:100,
+    expects:['Recognise stream-of-consciousness technique','Understand why Modernists abandoned traditional plot','Identify key Modernist authors and their innovations'],
+    questions:[
+      { type:"Who Wrote It?", text:'Identify the technique and its author:',
+        passage:'"Yes because he never did a thing like that before as ask to get his breakfast in bed with a couple of eggs since the City Arms hotel when he used to be pretending to be laid up with a sick voice..."',
+        options:["Virginia Woolf — from Mrs Dalloway, using free indirect discourse","James Joyce — from Ulysses, using stream of consciousness","William Faulkner — from The Sound and the Fury, using interior monologue","D.H. Lawrence — from Women in Love, using psychological realism"],
+        correct:1, explanation:"This is Molly Bloom's famous monologue from the end of Ulysses — Joyce's 40-page, largely unpunctuated stream of consciousness. The lack of full stops mimics continuous thought. Joyce spent seven years writing Ulysses." },
+      { type:'Hidden Meaning', text:"Virginia Woolf argued the novel should capture 'a luminous halo surrounding us from the beginning of consciousness to the end.' She was arguing against:",
+        options:["The use of dialogue in fiction","Victorian realism's focus on external plot and social mechanics","The influence of Freudian psychology on literature","Male writers dominating the literary canon"],
+        correct:1, explanation:"Woolf was challenging novelists who built fiction around property, class, and social events. Her own novels use time, consciousness, and perception as their true subjects. Mrs Dalloway takes place over a single day; To the Lighthouse over a single afternoon." },
+      { type:'Literary Device', text:"The technique where a narrative follows a character's thoughts exactly as they occur — including tangents and incomplete sentences — is called:",
+        options:['Free indirect style','Omniscient narration','Stream of consciousness','Unreliable narration'],
+        correct:2, explanation:"Stream of consciousness (William James coined the term in psychology; Édouard Dujardin first used it in fiction) simulates the flow of thought without editorial ordering. Free indirect style is different: the narrator subtly adopts a character's voice while remaining third-person." },
+      { type:'Context & Meaning', text:"T.S. Eliot's The Waste Land (1922) uses fragmented quotes from dozens of languages to suggest:",
+        options:["His personal superiority and encyclopaedic education","European civilisation after WWI was a broken collection of fragments no longer adding up to a coherent whole","That poetry should be accessible only to academics","That the English language was insufficient for modern experience"],
+        correct:1, explanation:"The Waste Land's fragmentation IS its meaning. Published the same year as Ulysses (1922), it used collage — scraps of myth, nursery rhyme, pub conversation, Sanskrit — to depict a civilisation that could no longer tell a coherent story about itself after WWI." },
+      { type:'Write Like the Genre', text:'Which passage best demonstrates Modernist interior consciousness?',
+        options:["John walked to the shop. He bought bread. He thought about his wife. She had left him last Tuesday.","Bread — she used to make it Tuesdays, the smell of it, why does the mind go back — the shop window, his own face not quite his face, the transaction completed before he'd decided to begin it.","As John entered the shop, he was reminded of his wife. She had departed their matrimonial home one week prior, on Tuesday.","The shop was quiet. One customer. The bread was fresh. John paid. Outside, the street continued its business."],
+        correct:1, explanation:"Option B shows associative thinking — memory triggered by sensation, time collapsed, external action dissolved into interior experience. Modernist prose doesn't describe experience; it enacts it. The grammar is disrupted because thought itself doesn't follow grammatical rules." }
+    ]
+  },
+  {
+    id:'postcolonial', name:'Voices Beyond the Canon', icon:'🌍',
+    movement:'Postcolonial Literature · Multiple Perspectives',
+    desc:"Whose story gets told? In what language? On whose terms? These are not just political questions — they are the deepest literary questions of our age.",
+    xpReward:50, locked:true, unlockXp:150,
+    expects:['Understand what postcolonial literature interrogates','Recognise how language itself can be a site of power','Encounter writers who reshaped world literature'],
+    questions:[
+      { type:'Context & Meaning', text:"Chinua Achebe's Things Fall Apart (1958) was partly written as a direct response to:",
+        options:["Heart of Darkness by Joseph Conrad","Robinson Crusoe by Daniel Defoe","Kim by Rudyard Kipling","A Passage to India by E.M. Forster"],
+        correct:0, explanation:"Achebe argued that Conrad's Heart of Darkness rendered Africans as backdrop, not people. Things Fall Apart deliberately gives Igbo society interiority, complexity, and tragedy from the inside. It is now the most widely read African novel, translated into over 57 languages." },
+      { type:'Hidden Meaning', text:"Ngũgĩ wa Thiong'o chose to write in Gikuyu rather than English after 1977. His argument was that:",
+        options:["English was simply too difficult for African storytelling traditions","Writing in a coloniser's language perpetuates a colonisation of the mind — literature in African languages serves African communities","Gikuyu was a more beautiful language with a richer literary tradition","English publishers were unfairly dominant in the market"],
+        correct:1, explanation:"Ngũgĩ's Decolonising the Mind (1986) argued that adopting English to tell African stories is itself a form of continued colonisation — language shapes thought. He was imprisoned by the Kenyan government and wrote his first Gikuyu novel on toilet paper in prison." },
+      { type:"Who Wrote It?", text:'Which author wrote a novel whose narrator is born at the exact moment of Indian independence?',
+        passage:'"I was born in the city of Bombay... once upon a time. No, that won\'t do, there\'s no getting away from the date: I was born in Doctor Narlikar\'s Nursing Home on August 15th, 1947."',
+        options:['Arundhati Roy','Salman Rushdie','R.K. Narayan','Amitav Ghosh'],
+        correct:1, explanation:"Salman Rushdie's Midnight's Children (1981) opens with a narrator born at the exact moment of Indian independence — his life becomes an allegory for the nation's fate. This magic realism technique owes debts to García Márquez but is distinctly South Asian. It won the Booker Prize." },
+      { type:'Literary Device', text:'When a writer uses the coloniser\'s literary tradition while subverting it from within, theorists call this:',
+        options:["Assimilation — the writer has fully adopted the Western tradition",'"Writing back" — using the master\'s tools to dismantle the master\'s house',"Hybridity — creating a new cultural form that belongs to neither tradition","Mimicry — a perfect imitation of the colonial literary model"],
+        correct:1, explanation:"'Writing back' (Bill Ashcroft et al., 1989) describes how postcolonial texts engage with canonical works — Jean Rhys wrote Wide Sargasso Sea as a prequel to Jane Eyre told from the perspective of the 'madwoman in the attic.' The colonised voice literally writes its way into a story that excluded it." },
+      { type:'Context & Meaning', text:"Arundhati Roy's 'Love Laws — the laws that lay down who should be loved, and how. And how much' describes:",
+        options:["Romantic conventions in Indian poetry","The intersection of caste, class, and colonial legacy in what kinds of love are permitted","Hindu religious texts governing marriage","A fictional legal code in the novel's dystopian future"],
+        correct:1, explanation:"Roy's central transgression — a Brahmin woman loving an 'Untouchable' man — breaks both caste rules and colonial class structures simultaneously. The 'Love Laws' are Roy's term for all social enforcement of who is considered human enough to love and be loved by." }
+    ]
+  },
+  {
+    id:'classics', name:'The Classical Hall', icon:'🏛️',
+    movement:'Ancient Literature · Epic · Tragedy',
+    desc:"Three thousand years ago, Homer described a soldier's longing for home. We still feel it. Some stories were written so close to the bone of being human they have never stopped bleeding.",
+    xpReward:50, locked:true, unlockXp:200,
+    expects:['Understand why ancient stories still resonate','Learn the conventions of epic and tragedy','See how Greek ideas about fate, hubris, and catharsis shaped all literature after'],
+    questions:[
+      { type:'Context & Meaning', text:'The ancient Greek concept of "hubris" refers specifically to:',
+        options:['Pride combined with a specific crime: overstepping the boundaries between human and divine','Any form of excessive pride or confidence','Anger so great it destroys the person experiencing it','An obsession with glory that leads to neglecting family'],
+        correct:0, explanation:"Hubris in Greek tragedy isn't just pride — it's the act of placing oneself above one's mortal station, challenging the gods. The gods' vengeance (nemesis) is not cruelty but cosmic correction. This is why Greek tragedy feels inevitable — the end is built into the beginning." },
+      { type:'Hidden Meaning', text:'Aristotle argued that tragedy produces "catharsis" in the audience. By this he meant:',
+        options:['Moral instruction — the audience learns what not to do','A purging or release of pity and fear through safely witnessing suffering','Entertainment — the relief of watching others suffer instead of oneself','Civic duty — Greek theatre was compulsory attendance for citizens'],
+        correct:1, explanation:"Catharsis (Greek: purging) describes how tragedy allows the audience to experience overwhelming emotion — pity for the suffering protagonist, fear that the same could happen to them — and be cleansed of it safely. Aristotle's Poetics remains the foundational document of Western literary criticism, 2,400 years later." },
+      { type:"Who Wrote It?", text:'The Iliad opens with the word "Mēnis" — meaning wrath or rage. Whose wrath is the epic\'s central subject?',
+        options:['Odysseus, the cunning Greek soldier','Achilles, the near-invincible Greek warrior','Agamemnon, the Greek commander','Hector, the Trojan champion'],
+        correct:1, explanation:"The Iliad is not a story about the Trojan War — it's a story about Achilles's wrath and what it costs him and others. When Agamemnon humiliates Achilles by taking his prize, Achilles withdraws from battle, ultimately costing him his best friend Patroclus." },
+      { type:'Literary Device', text:'In Homer, when a warrior\'s death is preceded by a brief reference to his home or father — though he\'s killed in two lines — this humanising technique is called:',
+        options:['The Epic Catalogue — a list of soldiers to create scale','The Homeric Epithet — a repeated descriptive phrase for a character','Aristeia — the "best moment" of a warrior before their death','The Brief Life — humanising a nameless casualty with a flash of identity'],
+        correct:3, explanation:"This technique is one of Homer's most devastating. A soldier who appeared in no earlier scene is given a father, a homeland, a talent, and then killed immediately. Simone Weil called The Iliad 'the poem of force' — these flashes of personhood are its conscience." },
+      { type:'Context & Meaning', text:"Sophocles's Oedipus Rex uses total dramatic irony — the audience knows something the characters do not. What do we know from the beginning?",
+        options:['That Creon is plotting against him','That the oracle about killing his father and marrying his mother has already come true','That Jocasta is aware of the full truth and hiding it','That Tiresias is lying to protect the city'],
+        correct:1, explanation:"Every step Oedipus takes to investigate the source of the plague is a step toward discovering his own guilt — he's detective and criminal simultaneously. Freud named the Oedipus complex after this play; it remains the purest demonstration of how fate, knowledge, and horror intersect in tragedy." }
+    ]
+  },
+  {
+    id:'magic-realism', name:'The Magical Realist Garden', icon:'🌿',
+    movement:'Magic Realism · Latin American Boom · Surreal Fiction',
+    desc:"Here, the impossible is reported with a straight face. The miraculous and the mundane share the same sentence. This is not fantasy — this is a different kind of truth.",
+    xpReward:50, locked:true, unlockXp:250,
+    expects:['Define magic realism and how it differs from fantasy','Recognise its political and cultural roots in Latin America','Understand why writers choose the magical over the realistic'],
+    questions:[
+      { type:'Context & Meaning', text:'Magic realism differs from fantasy fiction primarily because:',
+        options:['Magic realism uses less magic and more realistic settings','Fantasy builds an entirely different world; magic realism treats the impossible as simply part of ordinary reality — unremarkable to its characters','Fantasy is for children; magic realism is literary fiction for adults','Magic realism is always rooted in specific cultural mythology, while fantasy is invented'],
+        correct:1, explanation:"In magic realism (Borges, García Márquez, Rushdie, Toni Morrison), a character might levitate or a ghost might sit at the dinner table — and no one finds it unusual. The magic is woven into the fabric of reality. In fantasy, the reader is transported to a different world. Magic realism says: the world you live in is already this strange." },
+      { type:"Who Wrote It?", text:'A woman named Remedios the Beauty ascends bodily to heaven while folding laundry. This scene is from:',
+        options:["Isabel Allende's The House of the Spirits","Gabriel García Márquez's One Hundred Years of Solitude","Salman Rushdie's The Satanic Verses","Laura Esquivel's Like Water for Chocolate"],
+        correct:1, explanation:"García Márquez's One Hundred Years of Solitude (1967) treats Remedios's ascension with the same tone as laundry — matter-of-fact, unapologetic. This flatness of narrative voice is the magic realist signature. It sold 30 million copies and earned García Márquez the Nobel Prize." },
+      { type:'Hidden Meaning', text:'The political function of magic realism in Latin America was often to:',
+        options:['Escape from political reality into pure storytelling pleasure','Circumvent censorship and critique regimes through allegory that could not be directly prosecuted','Celebrate indigenous spiritual beliefs over European rationalism','Create a distinctly Latin American literature to compete commercially with European fiction'],
+        correct:1, explanation:"Under dictatorships (Pinochet, Perón, Somoza), direct political criticism was dangerous. Magical allegory gave writers cover — if a general is depicted as a man who has lived for 300 years draining the country, it's 'just a story.' The magic is often the only way to say the true thing safely." },
+      { type:'Write Like the Genre', text:'Which passage best demonstrates the magic realist mode?',
+        options:['Dragons appeared over the capital city, their scales reflecting the presidential palace. The war had begun.','The day the President disappeared, it rained yellow butterflies. By evening, thirty-seven years had passed in the government buildings, and no one mentioned it.','Elena had always believed in ghosts, but she\'d never expected one to ask to borrow her umbrella.','In a land far from anywhere real, a queen was born who could stop time with a single thought.'],
+        correct:1, explanation:"Option B is classic magic realism: the impossible (yellow butterflies, time compression) is stated flatly alongside the political (the President vanishing). The phrase 'no one mentioned it' is the key — the unremarked miracle. Option D is clearly fantasy (a constructed elsewhere)." },
+      { type:'Context & Meaning', text:"Jorge Luis Borges — considered the grandfather of magic realism — wrote about impossible libraries and labyrinths in order to:",
+        options:['Entertain through puzzles and intellectual games','Explore how fiction itself constructs reality — and how reality might be a kind of fiction','Critique the Catholic Church through metaphor','Create a mythological tradition for Argentina comparable to European literature'],
+        correct:1, explanation:"Borges was a philosopher in story-clothing. His Library of Babel — a library containing every possible book — is a meditation on meaning, randomness, and the human need to find patterns. His work anticipates postmodernism, the internet, and hypertext theory. He didn't write novels — only short stories, because he said everything could be said in ten pages." }
+    ]
+  }
+];
+
+let state = { xp:0, completedRooms:[], currentRoom:null, currentQuestion:0, score:0, answered:false };
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function showLibrary() {
+  renderLibrary();
+  showScreen('library-screen');
+}
+
+function renderLibrary() {
+  const grid = document.getElementById('rooms-grid');
+  document.getElementById('xp-label').textContent = state.xp + ' XP';
+  document.getElementById('xp-bar').style.width = Math.min(100, (state.xp/350)*100) + '%';
+  grid.innerHTML = ROOMS.map(room => {
+    const isLocked = room.locked && state.xp < (room.unlockXp||0);
+    const isDone = state.completedRooms.includes(room.id);
+    const topColor = room.id==='poetry'?'#c9a84c':room.id==='gothic'?'#6d3fd4':room.id==='satire'?'#c44a1a':room.id==='modernism'?'#0f6e56':room.id==='postcolonial'?'#854f0b':room.id==='classics'?'#5f5e5a':'#3b6d11';
+    return `<div class="room-card${isLocked?' locked':''}${isDone?' completed':''}" ${isLocked?'':` onclick="showRoomIntro('${room.id}')" style="border-top-color:${isDone?'#4a7c59':topColor}"`}>
+      <div class="room-icon">${room.icon}</div>
+      <div class="room-name">${room.name}</div>
+      <div class="room-desc">${room.movement}</div>
+      ${isDone?'<div class="room-status">✓ Completed</div>':isLocked?`<div class="room-lock">🔒 Unlock at ${room.unlockXp} XP</div>`:'<div class="room-status">Enter →</div>'}
+    </div>`;
+  }).join('');
+}
+
+function showRoomIntro(roomId) {
+  const room = ROOMS.find(r=>r.id===roomId);
+  state.currentRoom = roomId;
+  document.getElementById('intro-icon').textContent = room.icon;
+  document.getElementById('intro-movement').textContent = room.movement;
+  document.getElementById('intro-title').textContent = room.name;
+  document.getElementById('intro-desc').textContent = room.desc;
+  document.getElementById('expect-items').innerHTML = room.expects.map(e=>`<div class="expect-item"><span class="expect-dot">◆</span><span>${e}</span></div>`).join('');
+  showScreen('intro-screen');
+}
+
+function startRoom() {
+  const room = ROOMS.find(r=>r.id===state.currentRoom);
+  state.currentQuestion = 0; state.score = 0;
+  document.getElementById('current-room-name').textContent = room.name;
+  const pips = document.getElementById('progress-pips');
+  pips.innerHTML = room.questions.map((_,i)=>`<div class="pip${i===0?' current':''}" id="pip-${i}"></div>`).join('');
+  showScreen('game-screen');
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const room = ROOMS.find(r=>r.id===state.currentRoom);
+  const q = room.questions[state.currentQuestion];
+  state.answered = false;
+  document.getElementById('q-type-badge').textContent = q.type;
+  document.getElementById('q-text').textContent = q.text;
+  const passage = document.getElementById('q-passage');
+  if (q.passage) { passage.style.display='block'; passage.textContent=q.passage; } else { passage.style.display='none'; }
+  document.getElementById('options-list').innerHTML = q.options.map((opt,i)=>
+    `<button class="option-btn" onclick="selectOption(${i})"><span class="option-letter">${['A','B','C','D'][i]}</span><span>${opt}</span></button>`
+  ).join('');
+  document.getElementById('feedback-box').className = 'feedback-box';
+  document.getElementById('next-btn').className = 'next-btn';
+}
+
+function selectOption(idx) {
+  if (state.answered) return;
+  state.answered = true;
+  const room = ROOMS.find(r=>r.id===state.currentRoom);
+  const q = room.questions[state.currentQuestion];
+  const correct = idx===q.correct;
+  if (correct) state.score++;
+  document.querySelectorAll('.option-btn').forEach((btn,i) => {
+    btn.disabled = true;
+    if (i===q.correct) btn.classList.add('correct');
+    else if (i===idx && !correct) btn.classList.add('wrong');
+  });
+  const fb = document.getElementById('feedback-box');
+  fb.className = 'feedback-box show ' + (correct?'correct-fb':'wrong-fb');
+  document.getElementById('feedback-title').textContent = correct ? '✦ Precisely right.' : '✦ Not quite.';
+  document.getElementById('feedback-text').textContent = q.explanation;
+  const isLast = state.currentQuestion === room.questions.length-1;
+  const nb = document.getElementById('next-btn');
+  nb.className = 'next-btn show';
+  nb.textContent = isLast ? 'See your result →' : 'Next question →';
+  const pip = document.getElementById('pip-'+state.currentQuestion);
+  if (pip) pip.classList.replace('current','done');
+}
+
+function nextQuestion() {
+  const room = ROOMS.find(r=>r.id===state.currentRoom);
+  state.currentQuestion++;
+  if (state.currentQuestion >= room.questions.length) { showResult(); return; }
+  const pip = document.getElementById('pip-'+state.currentQuestion);
+  if (pip) pip.classList.add('current');
+  loadQuestion();
+}
+
+function showResult() {
+  const room = ROOMS.find(r=>r.id===state.currentRoom);
+  const total = room.questions.length;
+  const pct = state.score/total;
+  const xpGained = Math.round(room.xpReward*pct);
+  state.xp += xpGained;
+  if (!state.completedRooms.includes(room.id)) state.completedRooms.push(room.id);
+  ROOMS.forEach(r => { if (r.locked && state.xp >= (r.unlockXp||0)) r.locked=false; });
+  const types = {
+    poetry:['The Lyric Soul','You read between the lines — and find oceans there.'],
+    gothic:['The Dark Romantic','You understand that shadows tell the truth.'],
+    satire:['The Sharp Eye','You see the absurdity at the heart of things.'],
+    modernism:["The Mind's Cartographer",'You map the territory of consciousness.'],
+    postcolonial:['The Attentive Reader','You listen for the voices behind the voices.'],
+    classics:['The Eternal Reader','You know that every story was told before, and matters still.'],
+    'magic-realism':['The Believer in Impossible Things','You hold magic and reality in the same hand.']
+  };
+  const [typeName, typeDesc] = types[room.id];
+  document.getElementById('result-room-label').textContent = room.name + ' · Complete';
+  document.getElementById('score-ring').textContent = state.score+'/'+total;
+  document.getElementById('reader-type').textContent = typeName;
+  document.getElementById('result-score').textContent = Math.round(pct*100)+'% correct · +'+xpGained+' XP earned';
+  document.getElementById('result-desc').textContent = typeDesc + (pct<0.6?' Each room opens deeper. Return when ready.':" The shelves grow longer the further you read.");
+  const earnedBadges = [];
+  if (state.score===total) earnedBadges.push('✦ Perfect Score');
+  if (pct>=0.6) earnedBadges.push('Room Unlocked');
+  earnedBadges.push(room.movement.split(' · ')[0]);
+  document.getElementById('result-badges').innerHTML = earnedBadges.map(b=>`<div class="badge">${b}</div>`).join('');
+  showScreen('result-screen');
+}
+
+function playAgainRoom() { state.currentQuestion=0; state.score=0; startRoom(); }
+</script>
+</body>
+</html>
